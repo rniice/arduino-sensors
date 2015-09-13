@@ -22,8 +22,8 @@ void loop()
   }
   brightness = constrain(brightness, 0, 255);
   analogWrite(REDPin, brightness);
-  //analogWrite(GREENPin, brightness);
-  //analogWrite(BLUEPin, brightness);
+  analogWrite(GREENPin, brightness);
+  analogWrite(BLUEPin, brightness);
 
   delay(300);  // wait for 20 milliseconds to see the dimming effect
 }
