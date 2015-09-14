@@ -1,5 +1,5 @@
 // TITLE:   MMX - FLEX SENSOR TO LED CONTROL
-// LICENSE: Michael Crockett
+// LICENSE: Use as you wish
 // CREATOR: Michael Crockett  
 // WEBSITE: michael-crockett.com
 
