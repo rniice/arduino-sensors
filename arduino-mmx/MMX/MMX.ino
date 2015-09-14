@@ -41,13 +41,12 @@ void loop()
 {
   int degrees = getCurvature();
 
-  /* print out the result
-  Serial.print("analog input: ");
-  Serial.print(degrees, DEC);
-  Serial.print("   degrees: ");
-  Serial.println(degrees, DEC);
-  */
-
+  //print out the result
+  //Serial.print("analog input: ");
+  //Serial.print(degrees, DEC);
+  //Serial.print("   degrees: ");
+  //Serial.println(degrees, DEC);
+ 
   bool gesture_event = checkGesture(degrees);
 
   if (gesture_event) 
@@ -55,21 +54,25 @@ void loop()
     if ( (GestureCOUNT==2) && (GestureHOLD>=3.0) )
     {
       Serial.println("set to blink mode event detected");
+      GestureCOUNT = 0;                                     //rest gesture count 
       GestureHOLD = 0;                                      //reset gesture closed timer
     }
     else if ( (GestureCOUNT==2) && (GestureHOLD>=5.0) )
     {
       Serial.println("set brightness mode event detected");
+      GestureCOUNT = 0;                                     //rest gesture count 
       GestureHOLD = 0;                                      //reset gesture closed timer
     }
     else if (GestureCOUNT==3) //still not implemented
     {
       Serial.println("save configuration gesture event detected");
+      GestureCOUNT = 0;                                     //rest gesture count 
       GestureHOLD = 0;                                      //reset gesture closed timer
     }
     else if (GestureCOUNT==5)
     {
       Serial.println("on/off event detected");
+      GestureCOUNT = 0;                                     //rest gesture count 
       GestureHOLD = 0;                                      //reset gesture closed timer
     }
   }
@@ -119,7 +122,7 @@ bool checkGesture(int degrees)
   {
     if(degrees <= GestureAngleTHRESHOLD)    //mmx has been opened
     {
-      setLED_STANDARD(255);                 //turn on the led
+      setLED_STANDARD(20);                 //turn on the led
       GestureOPEN = true;
             
       return true;
@@ -127,9 +130,9 @@ bool checkGesture(int degrees)
     else                                    //mmx is still closed after previously being closed
     {
       GestureHOLD += SAMPLERate;            //increment the counter for GestureHOLD
-      Serial.print("holding closed for");
+      Serial.print("holding closed for ");
       Serial.print(GestureHOLD, DEC);
-      Serial.println("milliseconds");
+      Serial.println(" milliseconds");
       
       return false;
     }
@@ -141,16 +144,9 @@ bool checkGesture(int degrees)
 
 void setLED_STANDARD(int brightness)
 {
-  //brightness = brightness + increment;  // increment brightness for next loop iteration
 
-  //if (brightness <= 0 || brightness >= 255)    // reverse the direction of the fading
-  //{
-    //increment = -increment;
-  //}
   brightness = constrain(brightness, 0, 255);
   setLED_COLOR(brightness, brightness, brightness);
-
-  //delay(300);  // wait for 20 milliseconds to see the dimming effect
 
 }
 
