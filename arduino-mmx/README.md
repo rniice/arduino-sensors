@@ -1,32 +1,36 @@
 #Controlling the MMX
 
-##CONFIGURATION:
+###CONFIGURATION:
+- configuration can only be set when mmx is in the "on" mode.
 
 #####CONFIGURE RANGE
-
+- asdafsdflk, then ...
 
 #####CONFIGURE SENSITIVITY
-
+- adslkfajf, then ...
 
 #####CONFIGURE SAMPLE INTERVAL
+- asdlfksjdf, then ...
 
+#####SAVE CONFIGURATION TO EEPROM
+- close/open mmx 3x, hold open for 5 seconds, then close/open mmx 3x
 
-##MODES:
+###MODES:
 
 #####SET MODE ON:
-- close/open glove 5x
+- close/open mmx 5x
 
 #####SET MODE OFF
-- close/open glove 5x
+- close/open mmx 5x
 
 #####SET TO BLINK MODE
-- asdlfaj
-
+- close/open 2x, then hold closed for 3 seconds
 
 #####ADJUST BLINK MODE RATE
-
+- not supported yet
 
 #####SET BRIGHTNESS
+- close/open 2x, then hold closed for 5 seconds
 
 
 #####SET COLOR
