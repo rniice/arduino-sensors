@@ -10,7 +10,6 @@ int FLEXPin = A0;               // Vref to measure from
 int REDPin = 4;                 // RED pin of the LED to PWM pin 4
 int GREENPin = 5;               // GREEN pin of the LED to PWM pin 5
 int BLUEPin = 6;                // BLUE pin of the LED to PWM pin 6
-int SAMPLERate = 100;           // sample rate in milliseconds
 int brightness = 255;           // LED brightness initialized to off
 //int increment = 25;           // brightness increment
 int GestureCOUNT = 0;           // counts user input for changing mode or settings
@@ -19,9 +18,16 @@ float GestureHOLD = 0;          // amount of time in milliseconds gesture hold c
 bool GestureOPEN = true;        // mmx starts in the open position
 int GestureAngleTHRESHOLD = 30; // angle in degrees which constitues gesture change
 
-int blinkDelay = 1000;          //duration [in milliseconds] for on or off of led
+const int SAMPLERate = 50;      // sample rate in milliseconds
 
-int mode = 0;                  //track the modes of the device 0: standard; 1: blink; 2: dimming_setting; 3: color_setting
+unsigned long currentMillis = 0;//initialize current amount of time in milliseconds as 0
+unsigned long prevMillis = 0;   //initialize previous amount of time in milliseconds as 0
+
+int blinkDelay = 1000;          //duration [in milliseconds] for on or off of led
+bool blinkOn = false;           //track whether blink is on, or blink is off initialized to false
+int blinkIntervalMillis = 0;    //track how much time has gone by since last blink change
+
+int mode = 0;                   //track the modes of the device 0: standard; 1: blink; 2: dimming_setting; 3: color_setting
 
 //#define COMMON_ANODE                                     //uncomment this line if using a Common Anode LED
 
@@ -37,51 +43,53 @@ void setup()
 
 
 // MAIN LOOP
-void loop()
-{
-  int degrees = getCurvature();                             //check the current curvature
+void loop() {
+  unsigned long currentMillis = millis();                   //elapsed time in milliseconds
 
-  //Serial.print("analog input: ");                         //print out the result
-  //Serial.print(degrees, DEC);
-  //Serial.print("   degrees: ");
-  //Serial.println(degrees, DEC);
+  if (currentMillis - prevMillis >= SAMPLERate){
+    prevMillis = currentMillis;                         // save the last time interval was triggered
+    
+    int degrees = getCurvature();                             //check the current curvature
+
+    //Serial.print("analog input: ");                         //print out the result for debugging
+    //Serial.print(degrees, DEC);
+    //Serial.print("   degrees: ");
+    //Serial.println(degrees, DEC);
  
-  bool gesture_event = checkGesture(degrees);               //use the curvature to detect gesture
+    bool gesture_event = checkGesture(degrees);               //use the curvature to detect gesture
 
-  if (gesture_event) 
-  {
-    if ( (GestureCOUNT==2) && (GestureHOLD>=3.0) )
-    {
-      Serial.println("set to blink mode event detected");
-      GestureCOUNT = 0;                                     //rest gesture count 
-      GestureHOLD = 0;                                      //reset gesture closed timer
-      mode = 1;                                             //set to blink mode
+    if (gesture_event) {
+      if ( (GestureCOUNT==2) && (GestureHOLD>=3.0) ) {
+        Serial.println("set to blink mode event detected");
+        GestureCOUNT = 0;                                     //rest gesture count 
+        GestureHOLD = 0;                                      //reset gesture closed timer
+        mode = 1;                                             //set to blink mode
+      }
+      else if ( (GestureCOUNT==2) && (GestureHOLD>=5.0) ) {
+        Serial.println("set brightness mode event detected");
+        GestureCOUNT = 0;                                     //rest gesture count 
+        GestureHOLD = 0;                                      //reset gesture closed timer
+        mode = 2;                                             //set to blink mode
+      }
+      else if (GestureCOUNT==3) {                             //still not implemented
+        Serial.println("save configuration gesture event detected");
+        GestureCOUNT = 0;                                     //rest gesture count 
+        GestureHOLD = 0;                                      //reset gesture closed timer
+        mode = 3;
+      }
+      else if (GestureCOUNT==5) {
+        Serial.println("on/off event detected");
+        GestureCOUNT = 0;                                     //rest gesture count 
+        GestureHOLD = 0;                                      //reset gesture closed timer
+        mode = 4;
+      }
     }
-    else if ( (GestureCOUNT==2) && (GestureHOLD>=5.0) )
-    {
-      Serial.println("set brightness mode event detected");
-      GestureCOUNT = 0;                                     //rest gesture count 
-      GestureHOLD = 0;                                      //reset gesture closed timer
-      mode = 2;                                             //set to blink mode
+
+    else {
+      runMode();        //keep running  the currently set mode       
     }
-    else if (GestureCOUNT==3) //still not implemented
-    {
-      Serial.println("save configuration gesture event detected");
-      GestureCOUNT = 0;                                     //rest gesture count 
-      GestureHOLD = 0;                                      //reset gesture closed timer
-      mode = 3;
-    }
-    else if (GestureCOUNT==5)
-    {
-      Serial.println("on/off event detected");
-      GestureCOUNT = 0;                                     //rest gesture count 
-      GestureHOLD = 0;                                      //reset gesture closed timer
-      mode = 4;
-    }
+
   }
-  
-  runMode();        //keep running  the currently set mode
-                      
 }
 
 
@@ -140,10 +148,24 @@ void standardMode(){
 
 
 void blinkMode(){
-  setLED_STANDARD(0);
-  delay(blinkDelay);                                 //delay for selected config duration
-  setLED_STANDARD(brightness);
-  delay(blinkDelay);                                 //delay for selected config duration
+
+  blinkIntervalMillis += SAMPLERate;                   //increment up by SAMPLERATE for every time function called
+
+  if (blinkIntervalMillis >= blinkDelay) {             //if exceeded threshold to switch blink, take action
+    if (blinkOn) {
+      setLED_STANDARD(0);
+      blinkOn = false;                                 //sets the blinkOn to false for the next iteration
+    }
+
+    else {
+      setLED_STANDARD(brightness);
+      blinkOn = true;                                  //sets the blinkOn to true for the next iteration
+    }
+
+    blinkIntervalMillis = 0;                           //reset blinkIntervalMillis to restart counting again
+
+  }
+
 }
 
 
