@@ -117,12 +117,15 @@ void loop()
 }
 
 
-// PAUSES THE MAIN PROGRAM EXECUTION AND HOLDES COLOR FIXED
-void pause() 
+// PAUSES or RESUMES THE MAIN PROGRAM EXECUTION AND HOLDES COLOR FIXED
+void pauseORunpause() 
 {
-
-
-
+  if(pause){
+    pause = false;
+  }
+  else {
+    pause = true;
+  }
 }
 
 
