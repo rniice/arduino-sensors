@@ -46,6 +46,15 @@ int colorIncrement = 5;         // color value increment per cycle
 int colorIntervalMillis = 0;    // track how much time has gone by since last color change
 int colorChangeDelay = 100;     // duration [in milliseconds] before changing color
 
+//color options available (in percentages)
+int black[3]  = { 0, 0, 0 };
+int white[3]  = { 100, 100, 100 };
+int red[3]    = { 100, 0, 0 };
+int green[3]  = { 0, 100, 0 };
+int blue[3]   = { 0, 0, 100 };
+int yellow[3] = { 40, 95, 0 };
+
+//vector colorOptions[6] = {black, white, red, green, blue, yellow}; 
 
 
 //#define COMMON_ANODE                                     //uncomment this line if using a Common Anode LED
@@ -69,10 +78,10 @@ void loop() {
     
     int degrees = getCurvature();                             //check the current curvature
 
-    //Serial.print("analog input: ");                         //print out the result for debugging
-    //Serial.print(degrees, DEC);
-    //Serial.print("   degrees: ");
-    //Serial.println(degrees, DEC);
+    Serial.print("analog input: ");                         //print out the result for debugging
+    Serial.print(degrees, DEC);
+    Serial.print("   degrees: ");
+    Serial.println(degrees, DEC);
  
     bool gesture_event = checkGesture(degrees);               //use the curvature to detect gesture
 
@@ -227,10 +236,10 @@ void setColorMode() {       //DO THIS VERY SIMILAR TO setBRIGHTNESS MODE
  //modes 0: standard; 1: blink; 2: dimming_setting; 3: color_setting
 
 
+void setLED_STANDARD(int desired_brightness) { 
+  desired_brightness = constrain(desired_brightness, 0, 255);
+  setLED_COLOR(desired_brightness, desired_brightness, desired_brightness);
 
-void setLED_STANDARD(int desired_brightness) {
-  brightness = constrain(desired_brightness, 0, 255);
-  setLED_COLOR(brightness, brightness, brightness);
 }
 
 
