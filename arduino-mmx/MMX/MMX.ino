@@ -28,7 +28,7 @@ unsigned long currentMillis = 0;//initialize current amount of time in milliseco
 unsigned long prevMillis = 0;   //initialize previous amount of time in milliseconds as 0
 
 //settings and state variables: blink mode
-int blinkDelay = 1000;          //duration [in milliseconds] for on or off of led
+int blinkDelay = 500;          //duration [in milliseconds] for on or off of led
 bool blinkOn = false;           //track whether blink is on, or blink is off initialized to false
 int blinkIntervalMillis = 0;    //track how much time has gone by since last blink change
 
@@ -78,10 +78,10 @@ void loop() {
     
     int degrees = getCurvature();                             //check the current curvature
 
-    Serial.print("analog input: ");                         //print out the result for debugging
-    Serial.print(degrees, DEC);
-    Serial.print("   degrees: ");
-    Serial.println(degrees, DEC);
+    //Serial.print("analog input: ");                         //print out the result for debugging
+    //Serial.print(degrees, DEC);
+    //Serial.print("   degrees: ");
+    //Serial.println(degrees, DEC);
  
     bool gesture_event = checkGesture(degrees);               //use the curvature to detect gesture
 
@@ -114,33 +114,47 @@ void loop() {
         prevMode = mode;                                      //store the previous mode        
         mode = 4;
       }
-    }
-
-    else {
-      runMode();                                              //keep running  the currently set mode       
+      else {
+        //Serial.println("standard mode detected");
+        //GestureCOUNT = 0;                                     //rest gesture count 
+        //GestureHOLD = 0;                                      //reset gesture closed timer
+        //prevMode = mode;                                      //store the previous mode        
+        //mode = 4;
+      }
     }
 
   }
+
+  runMode();  
 }
 
 
 //RUN LOOP
 void runMode(){
+  Serial.print("mode equals: ");
+  Serial.println(mode, DEC);
+
   switch(mode) {
     case 0:                         //standard mode
       standardMode();
+      Serial.println("runMode triggering standardMode()");
       break;
     case 1:                         //set to blink mode
       blinkMode();
+      Serial.println("runMode triggering blinkMode()");
       break;
     case 2:                         //set brightness mode
       setBrightnessMode();
+      Serial.println("runMode triggering setBrightnessMode()");
       break;
     case 3:                         //set color mode
       setColorMode();
+      Serial.println("runMode triggering setColorMode()");
+      break;
+    case 4:
+      Serial.println("runMode triggering on/off");
       break;
     }
-  
     //if current mode is the same as the selected mode, switch back to standard mode
 }
 
@@ -151,12 +165,15 @@ bool checkGesture(int degrees) {
     if(degrees >= GestureAngleTHRESHOLD){    //mmx has been closed
       GestureCOUNT++;
       GestureOPEN = false;
+      Serial.println("MMX closed");
       return false;
     }
   }
   else {                                     //if previoius state is mmx closed
     if(degrees <= GestureAngleTHRESHOLD) {   //mmx has been opened
       GestureOPEN = true;     
+      GestureHOLD = 0;                       //reset GestureHOLD since opened event occurred
+      Serial.println("MMX opened");
       return true;
     }
     else {                                   //mmx is still closed after previously being closed
@@ -188,15 +205,14 @@ void blinkMode(){
     if (blinkOn) {
       setLED_STANDARD(0);
       blinkOn = false;                                 //sets the blinkOn to false for the next iteration
+      blinkIntervalMillis = 0;                           //reset blinkIntervalMillis to restart counting again
     }
 
     else {
       setLED_STANDARD(brightness);
       blinkOn = true;                                  //sets the blinkOn to true for the next iteration
+      blinkIntervalMillis = 0;                           //reset blinkIntervalMillis to restart counting again
     }
-
-    blinkIntervalMillis = 0;                           //reset blinkIntervalMillis to restart counting again
-
   }
 }
 
