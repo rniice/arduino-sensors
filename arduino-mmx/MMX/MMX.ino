@@ -13,9 +13,11 @@ int GREENPin = 5;               // GREEN pin of the LED to PWM pin 5
 int BLUEPin = 6;                // BLUE pin of the LED to PWM pin 6
 
 //settings and state variables: track the mode of the system
-int mode = 0;                   //track the modes of the device 0: standard; 1: blink; 2: dimming_setting; 3: color_setting
+int mode = 1;                   //track the modes of the device 0: standard; 1: blink; 2: dimming_setting; 3: color_setting
 int prevMode = 0;               //track the previous mode to switch back to after change
 
+int degrees = 0;                // initialize degrees of mmx at 0 (full open)
+bool gesture_event = false;     // initialize at false if there is currently an active gesture
 int GestureCOUNT = 0;           // counts user input for changing mode or settings
 int GestureTIMEOUT = 500;       // maximum milliseconds for a gesture to be counted
 float GestureHOLD = 0;          // amount of time in milliseconds gesture hold closed (ended on mmx open)
@@ -76,43 +78,43 @@ void loop() {
   if (currentMillis - prevMillis >= SAMPLERate){
     prevMillis = currentMillis;                         // save the last time interval was triggered
     
-    int degrees = getCurvature();                             //check the current curvature
+    degrees = getCurvature();                             //check the current curvature
 
     //Serial.print("analog input: ");                         //print out the result for debugging
     //Serial.print(degrees, DEC);
     //Serial.print("   degrees: ");
     //Serial.println(degrees, DEC);
  
-    bool gesture_event = checkGesture(degrees);               //use the curvature to detect gesture
-
     if (gesture_event) {
-      if ( (GestureCOUNT==2) && (GestureHOLD>=3.0) ) {
+      //if ( (GestureCOUNT==2) && (GestureHOLD>=3.0) ) {
+      if (GestureCOUNT==2) {
         Serial.println("set to blink mode event detected");
         GestureCOUNT = 0;                                     //rest gesture count 
         GestureHOLD = 0;                                      //reset gesture closed timer
         prevMode = mode;                                      //store the previous mode
         mode = 1;                                             //set to blink mode
       }
-      else if ( (GestureCOUNT==2) && (GestureHOLD>=5.0) ) {
+      //else if ( (GestureCOUNT==2) && (GestureHOLD>=5.0) ) {
+      else if (GestureCOUNT==3 ) {
         Serial.println("set brightness mode gesture event detected");
         GestureCOUNT = 0;                                     //rest gesture count 
         GestureHOLD = 0;                                      //reset gesture closed timer
         prevMode = mode;                                      //store the previous mode        
         mode = 2;                                             //set to blink mode
       }
-      else if ( (GestureCOUNT==3) && (GestureHOLD>=5.0) ) {   //still not implemented
-        Serial.println("set color mode gesture event detected");
+      //else if ( (GestureCOUNT==3) && (GestureHOLD>=5.0) ) {   //still not implemented
+      else if (GestureCOUNT==3) {   //still not implemented  Serial.println("set color mode gesture event detected");
         GestureCOUNT = 0;                                     //rest gesture count 
         GestureHOLD = 0;                                      //reset gesture closed timer
         prevMode = mode;                                      //store the previous mode        
         mode = 3;
       }
       else if (GestureCOUNT==5) {
-        Serial.println("on/off event detected");
+        Serial.println("reset event detected");
         GestureCOUNT = 0;                                     //rest gesture count 
         GestureHOLD = 0;                                      //reset gesture closed timer
         prevMode = mode;                                      //store the previous mode        
-        mode = 4;
+        mode = 0;
       }
       else {
         //Serial.println("standard mode detected");
@@ -124,35 +126,37 @@ void loop() {
     }
 
   }
-
+  
   runMode();  
+  gesture_event = checkGesture(degrees);               //use the curvature to detect gesture
+
 }
 
 
 //RUN LOOP
 void runMode(){
-  Serial.print("mode equals: ");
-  Serial.println(mode, DEC);
+  //Serial.print("mode equals: ");
+  //Serial.println(mode, DEC);
 
   switch(mode) {
     case 0:                         //standard mode
       standardMode();
-      Serial.println("runMode triggering standardMode()");
+      //Serial.println("runMode triggering standardMode()");
       break;
     case 1:                         //set to blink mode
       blinkMode();
-      Serial.println("runMode triggering blinkMode()");
+      //Serial.println("runMode triggering blinkMode()");
       break;
     case 2:                         //set brightness mode
       setBrightnessMode();
-      Serial.println("runMode triggering setBrightnessMode()");
+      //Serial.println("runMode triggering setBrightnessMode()");
       break;
     case 3:                         //set color mode
       setColorMode();
-      Serial.println("runMode triggering setColorMode()");
+      //Serial.println("runMode triggering setColorMode()");
       break;
     case 4:
-      Serial.println("runMode triggering on/off");
+      //Serial.println("runMode triggering on/off");
       break;
     }
     //if current mode is the same as the selected mode, switch back to standard mode
