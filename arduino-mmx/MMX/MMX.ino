@@ -3,6 +3,10 @@
 // CREATOR: Michael Crockett  
 // WEBSITE: michael-crockett.com
 
+#include <SimpleTimer.h>
+#include <Adafruit_NeoPixel.h>
+
+SimpleTimer timer;
 
 // GLOBALS
 
@@ -16,6 +20,7 @@ int BLUEPin = 6;                // BLUE pin of the LED to PWM pin 6
 int mode = 0;                   //track the modes of the device 0: standard; 1: blink; 2: dimming_setting; 3: color_setting
 int prevMode = 0;               //track the previous mode to switch back to after change
 
+int flex_sensor;                // analog voltage from A-D on sensor
 int degrees = 0;                // initialize degrees of mmx at 0 (full open)
 bool gesture_event = false;     // initialize at false if there is currently an active gesture
 int GestureCOUNT = 0;           // counts user input for changing mode or settings
@@ -25,10 +30,8 @@ bool GestureOPEN = true;        // mmx starts in the open position
 int GestureAngleTHRESHOLD = 45; // angle in degrees which constitues gesture change
 
 //settings and state variables: track real time clock
-const int SAMPLERate = 100;      // sample rate in milliseconds
-unsigned long readMillis = 0;   //millis read from the internal clock
-unsigned long currentMillis = 0;//initialize current amount of time in milliseconds as 0
-unsigned long prevMillis = 0;   //initialize previous amount of time in milliseconds as 0
+const int sensorSampleRate = 100;// sample rate in milliseconds
+const int updateOutputRate = 50; // sample rate in milliseconds      
 
 //settings and state variables: blink mode
 int blinkDelay = 500;          //duration [in milliseconds] for on or off of led
@@ -66,55 +69,21 @@ void setup() {
   pinMode(REDPin, OUTPUT);
   pinMode(GREENPin, OUTPUT);
   pinMode(BLUEPin, OUTPUT);
+
+  updateSensorInterval = timer.setInterval(sensorSampleRate, getCurvature);
+  updateGestureInterval = timer.setInterval(sensorSampleRate, checkGesture);
+  updateOutputInterval = timer.setInterval(updateOutputRate, runMode);
+
 }
 
 
 // MAIN LOOP
 void loop() {
   
-  currentMillis = millis();                                   //elapsed time in milliseconds
+  timer.run();
 
-  runMode();  
-
-  degrees = getCurvature();                                   //check the current curvature
-
-  gesture_event = checkGesture(degrees);                      //use the curvature to detect gesture
-
-  //sample gesture only within SAMPLERate Interval
-  if (currentMillis - prevMillis >= SAMPLERate){
-    prevMillis = currentMillis;                               //save the last time interval was triggered
-    
-    if (gesture_event) {
-
-      if (GestureCOUNT==2) {
-        Serial.println("set to blink mode event detected");
-        prevMode = mode;                                      //store the previous mode
-        mode = 2;                                             //set to blink mode
-      }
-      else if (GestureCOUNT==3 ) {
-        Serial.println("set brightness mode gesture event detected");
-        prevMode = mode;                                      //store the previous mode        
-        mode = 3;                                             //set to blink mode
-      }
-      else if (GestureCOUNT==4) {   //still not implemented  
-        Serial.println("set color mode gesture event detected");
-        prevMode = mode;                                      //store the previous mode        
-        mode = 4;
-      }
-      else if (GestureCOUNT==5) {
-        Serial.println("reset event detected");
-        prevMode = mode;                                      //store the previous mode        
-        mode = 0;
-      }
-      else {
-        //Serial.println("standard mode detected");
-        //GestureCOUNT = 0;                                     //rest gesture count 
-        //GestureHOLD = 0;                                      //reset gesture closed timer
-        //prevMode = mode;                                      //store the previous mode        
-        //mode = 4;
-      }
-    }
-
+  if (gesture_event) {
+    changeProgram();
   }
   
 }
@@ -151,31 +120,62 @@ void runMode(){
 
 
 //FLEX SENSOR GESTURE DETECTION
-bool checkGesture(int degrees) {
+void checkGesture() {
 
   if(GestureOPEN) {                          //if previous state is mmx open
     if(degrees >= GestureAngleTHRESHOLD){    //mmx has been closed
       GestureCOUNT++;
       GestureOPEN = false;
-      return false;
+      gesture_event = false;
     }
   }
   else {                                     //if previoius state is mmx closed
     if(degrees <= GestureAngleTHRESHOLD) {   //mmx has been opened
       GestureOPEN = true;     
       GestureDURATION += SAMPLERate;         //add to gestureDURATION clock to trigger start counting
-      return true;
+      gesture_event = true;
     }
     else {                                   //mmx is still closed after previously being closed
-      return false;
+      gesture_event = false;
     }
   }
-
-  gestureTimer();                            //let gestureTimer take care of set/reset timer
 
 }
 
 
+void changeProgram() {
+
+  if (GestureCOUNT==2) {
+    Serial.println("set to blink mode event detected");
+    prevMode = mode;                                      //store the previous mode
+    mode = 2;                                             //set to blink mode
+  }
+  else if (GestureCOUNT==3 ) {
+    Serial.println("set brightness mode gesture event detected");
+    prevMode = mode;                                      //store the previous mode        
+    mode = 3;                                             //set to blink mode
+  }
+  else if (GestureCOUNT==4) {   //still not implemented  
+    Serial.println("set color mode gesture event detected");
+    prevMode = mode;                                      //store the previous mode        
+    mode = 4;
+  }
+  else if (GestureCOUNT==5) {
+    Serial.println("reset event detected");
+    prevMode = mode;                                      //store the previous mode        
+    mode = 0;
+  }
+  else {
+    //Serial.println("standard mode detected");
+    //GestureCOUNT = 0;                                     //rest gesture count 
+    //GestureHOLD = 0;                                      //reset gesture closed timer
+    //prevMode = mode;                                      //store the previous mode        
+    //mode = 4;
+  }
+
+}
+
+//REDO THIS FUNCTION
 void gestureTimer() {
 
   if (GestureDURATION > GestureTIMEOUT){
@@ -200,7 +200,7 @@ void standardMode(){
   }
 }
 
-
+//REDO THIS FUNCTION
 void blinkMode(){
 
   if(GestureOPEN){
@@ -228,7 +228,7 @@ void blinkMode(){
 
 }
 
-
+//REDO THIS FUNCTION
 void setBrightnessMode() {
   brightnessIntervalMillis += SAMPLERate;              //increment up by SAMPLERATE for every time function called
 
@@ -246,7 +246,7 @@ void setBrightnessMode() {
   */
 }
 
-
+//REDO THIS FUNCTION
 void setColorMode() {       //DO THIS VERY SIMILAR TO setBRIGHTNESS MODE
   colorIntervalMillis += SAMPLERate;              //increment up by SAMPLERATE for every time function called
 
@@ -285,11 +285,8 @@ void setLED_COLOR(int red, int green, int blue) {
 
 
 //FLEX SENSOR READ CODE
-int getCurvature() {
-  int flex_sensor, degrees;
-  
+void getCurvature() {
   flex_sensor = analogRead(FLEXPin);  // read the voltage from the voltage divider (sensor plus resistor)
-  
   // convert the voltage reading to inches
   // the first two numbers are the sensor values for straight (768) and bent (853)
   // the second two numbers are the degree readings we'll map that to (0 to 90 degrees)
@@ -297,6 +294,4 @@ int getCurvature() {
   // note that the above numbers are ideal, your sensor's values will vary
   // to improve the accuracy, run the program, note your sensor's analog values
   // when it's straight and bent, and insert those values into the above function.
-  
-  return degrees;
 }
