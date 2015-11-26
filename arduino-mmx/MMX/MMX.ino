@@ -6,8 +6,6 @@
 #include <SimpleTimer.h>
 #include <Adafruit_NeoPixel.h>
 
-SimpleTimer timer;
-
 // GLOBALS
 
 //settings: configuration of hardware 
@@ -31,18 +29,16 @@ int GestureAngleTHRESHOLD = 45; // angle in degrees which constitues gesture cha
 
 //settings and state variables: track real time clock
 const int sensorSampleRate = 100;// sample rate in milliseconds
-const int updateOutputRate = 50; // sample rate in milliseconds      
+const int updateOutputRate = 200; // sample rate in milliseconds      
 
 //settings and state variables: blink mode
 int blinkDelay = 500;          //duration [in milliseconds] for on or off of led
 bool blinkOn = false;           //track whether blink is on, or blink is off initialized to false
-int blinkIntervalMillis = 0;    //track how much time has gone by since last blink change
 
 //settings and state variables: brightness mode
 int brightness = 120;           // LED brightness initialized to on
 int brightnessTest = 120;       // start LED brightness set test at 255
 int brightnessIncrement = 5;    // brightness value increment per cycle
-int brightnessIntervalMillis = 0;//track how much time has gone by since last brightness change
 int brightnessChangeDelay = 100;//duration [in milliseconds] before changing brightness
 
 //settings and state variables: color mode
@@ -62,18 +58,28 @@ int yellow[3] = { 40, 95, 0 };
 
 //#define COMMON_ANODE                                        //uncomment this line if using a Common Anode LED
 
+
+//TIMER intervale setup
+SimpleTimer timer;
+
+int updateSensorIntervalID = timer.setInterval(sensorSampleRate, getCurvature);
+int updateGestureIntervalID = timer.setInterval(sensorSampleRate, checkGesture);
+int updateOutputIntervalID = timer.setInterval(updateOutputRate, runMode);
+
+int updateBlinkIntervalID = timer.setInterval(blinkDelay, blinkMode);
+
+
+
+
 // SETUP
 void setup() {
   Serial.begin(9600);                                         //initialize serial communications
   pinMode(FLEXPin, INPUT);                                    //set pin modes
   pinMode(REDPin, OUTPUT);
   pinMode(GREENPin, OUTPUT);
-  pinMode(BLUEPin, OUTPUT);
+  pinMode(BLUEPin, OUTPUT);   
 
-  updateSensorInterval = timer.setInterval(sensorSampleRate, getCurvature);
-  updateGestureInterval = timer.setInterval(sensorSampleRate, checkGesture);
-  updateOutputInterval = timer.setInterval(updateOutputRate, runMode);
-
+  timer.disable(updateBlinkIntervalID);                       //initially disable blinkInterval
 }
 
 
@@ -99,7 +105,7 @@ void runMode(){
       Serial.println("triggering standardMode()");
       break;
     case 2:                         //set to blink mode
-      blinkMode();
+      timer.enable(updateBlinkIntervalID);
       Serial.println("triggering blinkMode()");
       break;
     case 3:                         //set brightness mode
@@ -132,7 +138,7 @@ void checkGesture() {
   else {                                     //if previoius state is mmx closed
     if(degrees <= GestureAngleTHRESHOLD) {   //mmx has been opened
       GestureOPEN = true;     
-      GestureDURATION += SAMPLERate;         //add to gestureDURATION clock to trigger start counting
+   
       gesture_event = true;
     }
     else {                                   //mmx is still closed after previously being closed
@@ -184,11 +190,10 @@ void gestureTimer() {
   }
 
   else if(GestureDURATION > 0){
-    GestureDURATION += SAMPLERate;           //add to gestureDURATION clock
+    
   }
 
 }
-
 
 
 void standardMode(){
@@ -205,23 +210,16 @@ void blinkMode(){
 
   if(GestureOPEN){
 
-    blinkIntervalMillis += SAMPLERate;                   //increment up by SAMPLERATE for every time function called
-
-    if (blinkIntervalMillis >= blinkDelay) {             //if exceeded threshold to switch blink, take action
       if (blinkOn) {
         setLED_STANDARD(0);
         blinkOn = false;                                 //sets the blinkOn to false for the next iteration
-        blinkIntervalMillis = 0;                         //reset blinkIntervalMillis to restart counting again
       }
 
       else {
         setLED_STANDARD(brightness);
         blinkOn = true;                                  //sets the blinkOn to true for the next iteration
-        blinkIntervalMillis = 0;                         //reset blinkIntervalMillis to restart counting again
       }
-    }
   }
-
   else {                                                 //MMX is closed
     setLED_STANDARD(0);
   }
@@ -230,12 +228,9 @@ void blinkMode(){
 
 //REDO THIS FUNCTION
 void setBrightnessMode() {
-  brightnessIntervalMillis += SAMPLERate;              //increment up by SAMPLERATE for every time function called
-
-  if (brightnessIntervalMillis >= brightnessChangeDelay) {
+  
     setLED_STANDARD(brightnessTest);                   //start at highest brightness and increment down
     brightnessTest -= brightnessIncrement;             //reduce the brightnessTest value
-  }
 
   /*
   else if (GestureOPEN == false) {                     //user has closed hand to confirm selection
@@ -248,8 +243,7 @@ void setBrightnessMode() {
 
 //REDO THIS FUNCTION
 void setColorMode() {       //DO THIS VERY SIMILAR TO setBRIGHTNESS MODE
-  colorIntervalMillis += SAMPLERate;              //increment up by SAMPLERATE for every time function called
-
+  
   if (colorIntervalMillis >= colorChangeDelay) {
     setLED_STANDARD(colorTest);                   //start at highest brightness and increment down
     colorTest -= colorIncrement;             //reduce the brightnessTest value
