@@ -76,14 +76,14 @@ void loop() {
 
   runMode();  
 
+  degrees = getCurvature();                                   //check the current curvature
+
   gesture_event = checkGesture(degrees);                      //use the curvature to detect gesture
 
   //sample gesture only within SAMPLERate Interval
   if (currentMillis - prevMillis >= SAMPLERate){
     prevMillis = currentMillis;                               //save the last time interval was triggered
     
-    degrees = getCurvature();                                 //check the current curvature
-
     if (gesture_event) {
 
       if (GestureCOUNT==2) {
@@ -104,7 +104,7 @@ void loop() {
       else if (GestureCOUNT==5) {
         Serial.println("reset event detected");
         prevMode = mode;                                      //store the previous mode        
-        mode = 5;
+        mode = 0;
       }
       else {
         //Serial.println("standard mode detected");
@@ -237,11 +237,13 @@ void setBrightnessMode() {
     brightnessTest -= brightnessIncrement;             //reduce the brightnessTest value
   }
 
+  /*
   else if (GestureOPEN == false) {                     //user has closed hand to confirm selection
     brightnessIntervalMillis = 0;                      //reset counter to 0;
     brightness = brightnessTest;                       //overwrite brightness setting
     mode = prevMode;                                   //go back to the previous mode set
   }
+  */
 }
 
 
@@ -253,12 +255,13 @@ void setColorMode() {       //DO THIS VERY SIMILAR TO setBRIGHTNESS MODE
     colorTest -= colorIncrement;             //reduce the brightnessTest value
   }
 
+  /*
   else if (GestureOPEN == false) {                     //user has closed hand to confirm selection
     colorIntervalMillis = 0;                      //reset counter to 0;
     color = colorTest;                       //overwrite brightness setting
     mode = prevMode;                                   //go back to the previous mode set
   }
-
+  */
 }
 
 
