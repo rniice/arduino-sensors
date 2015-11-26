@@ -4,15 +4,38 @@
 // WEBSITE: michael-crockett.com
 
 #include <SimpleTimer.h>
+
+//////////////////////////////NEOPIXEL STUFF//////////////////////////////////////
 #include <Adafruit_NeoPixel.h>
+
+#define BUTTON_PIN   2    // Digital IO pin connected to the button.  This will be
+                          // driven with a pull-up resistor so the switch should
+                          // pull the pin to ground momentarily.  On a high -> low
+                          // transition the button press logic will execute.
+
+#define PIXEL_PIN    6    // Digital IO pin connected to the NeoPixels.
+
+#define PIXEL_COUNT 8
+
+// Parameter 1 = number of pixels in strip,  neopixel stick has 8
+// Parameter 2 = pin number (most are valid)
+// Parameter 3 = pixel type flags, add together as needed:
+//   NEO_RGB     Pixels are wired for RGB bitstream
+//   NEO_GRB     Pixels are wired for GRB bitstream, correct for neopixel stick
+//   NEO_KHZ400  400 KHz bitstream (e.g. FLORA pixels)
+//   NEO_KHZ800  800 KHz bitstream (e.g. High Density LED strip), correct for neopixel stick
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(PIXEL_COUNT, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
+
+bool oldState = HIGH;
+int showType = 0;
+//////////////////////////////NEOPIXEL STUFF//////////////////////////////////////
+
+
 
 // GLOBALS
 
 //settings: configuration of hardware 
 int FLEXPin = A0;               // Vref to measure from
-int REDPin = 4;                 // RED pin of the LED to PWM pin 4
-int GREENPin = 5;               // GREEN pin of the LED to PWM pin 5
-int BLUEPin = 6;                // BLUE pin of the LED to PWM pin 6
 
 //settings and state variables: track the mode of the system
 int mode = 0;                   //track the modes of the device 0: standard; 1: blink; 2: dimming_setting; 3: color_setting
@@ -47,16 +70,6 @@ int colorTest = 255;            // start LED color set test at 255
 int colorIncrement = 5;         // color value increment per cycle
 int colorChangeDelay = 2000;    // duration [in milliseconds] before changing color
 
-//color options available (in percentages)
-int black[3]  = { 0, 0, 0 };
-int white[3]  = { 100, 100, 100 };
-int red[3]    = { 100, 0, 0 };
-int green[3]  = { 0, 100, 0 };
-int blue[3]   = { 0, 0, 100 };
-int yellow[3] = { 40, 95, 0 };
-
-//#define COMMON_ANODE                                        //uncomment this line if using a Common Anode LED
-
 
 //TIMER intervale setup
 SimpleTimer timer;
@@ -74,9 +87,10 @@ int updateColorIntervalID = timer.setInterval(colorChangeDelay, setColorMode);
 void setup() {
   Serial.begin(9600);                                         //initialize serial communications
   pinMode(FLEXPin, INPUT);                                    //set pin modes
-  pinMode(REDPin, OUTPUT);
-  pinMode(GREENPin, OUTPUT);
-  pinMode(BLUEPin, OUTPUT);   
+
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  strip.begin();
+  //strip.show(); // Initialize all pixels to 'off'
 }
 
 
@@ -88,6 +102,28 @@ void loop() {
   if (gesture_event) {
     changeProgram();
   }
+
+  //LED CONTROL STUFF FROM BUTTON
+  // Get current button state.
+  bool newState = digitalRead(BUTTON_PIN);
+
+  // Check if state changed from high to low (button press).
+  if (newState == LOW && oldState == HIGH) {
+    // Short delay to debounce button.
+    delay(20);
+    // Check if button is still low after debounce.
+    newState = digitalRead(BUTTON_PIN);
+    if (newState == LOW) {
+      showType++;
+      if (showType > 9)
+        showType=0;
+      startShow(showType);
+    }
+  }
+
+  // Set the last button state to the old state.
+  oldState = newState;
+  //LED CONTROL STUFF FROM BUTTON
   
 }
 
@@ -254,14 +290,9 @@ void setLED_STANDARD(int desired_brightness) {
 
 
 void setLED_COLOR(int red, int green, int blue) {
-  #ifdef COMMON_ANODE
-    red = 255 - red;
-    green = 255 - green;
-    blue = 255 - blue;
-  #endif
-  analogWrite(REDPin, red);
-  analogWrite(GREENPin, green);
-  analogWrite(BLUEPin, blue);
+
+  colorWipe(strip.Color(red, green, blue), 50);
+
 }
 
 
@@ -276,3 +307,121 @@ void getCurvature() {
   // to improve the accuracy, run the program, note your sensor's analog values
   // when it's straight and bent, and insert those values into the above function.
 }
+
+
+//ADAFRUIT BUTTON CYCLER FUNCTIONS
+void startShow(int i) {
+  switch(i){
+    case 0: colorWipe(strip.Color(0, 0, 0), 50);    // Black/off
+            break;
+    case 1: colorWipe(strip.Color(255, 0, 0), 50);  // Red
+            break;
+    case 2: colorWipe(strip.Color(0, 255, 0), 50);  // Green
+            break;
+    case 3: colorWipe(strip.Color(0, 0, 255), 50);  // Blue
+            break;
+    case 4: theaterChase(strip.Color(127, 127, 127), 50); // White
+            break;
+    case 5: theaterChase(strip.Color(127,   0,   0), 50); // Red
+            break;
+    case 6: theaterChase(strip.Color(  0,   0, 127), 50); // Blue
+            break;
+    case 7: rainbow(20);
+            break;
+    case 8: rainbowCycle(20);
+            break;
+    case 9: theaterChaseRainbow(50);
+            break;
+  }
+}
+
+// Fill the dots one after the other with a color
+void colorWipe(uint32_t c, uint8_t wait) {
+  for(uint16_t i=0; i<strip.numPixels(); i++) {
+    strip.setPixelColor(i, c);
+    strip.show();
+    delay(wait);
+  }
+}
+
+void rainbow(uint8_t wait) {
+  uint16_t i, j;
+
+  for(j=0; j<256; j++) {
+    for(i=0; i<strip.numPixels(); i++) {
+      strip.setPixelColor(i, Wheel((i+j) & 255));
+    }
+    strip.show();
+    delay(wait);
+  }
+}
+
+// Slightly different, this makes the rainbow equally distributed throughout
+void rainbowCycle(uint8_t wait) {
+  uint16_t i, j;
+
+  for(j=0; j<256*5; j++) { // 5 cycles of all colors on wheel
+    for(i=0; i< strip.numPixels(); i++) {
+      strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
+    }
+    strip.show();
+    delay(wait);
+  }
+}
+
+//Theatre-style crawling lights.
+void theaterChase(uint32_t c, uint8_t wait) {
+  for (int j=0; j<10; j++) {  //do 10 cycles of chasing
+    for (int q=0; q < 3; q++) {
+      for (int i=0; i < strip.numPixels(); i=i+3) {
+        strip.setPixelColor(i+q, c);    //turn every third pixel on
+      }
+      strip.show();
+
+      delay(wait);
+
+      for (int i=0; i < strip.numPixels(); i=i+3) {
+        strip.setPixelColor(i+q, 0);        //turn every third pixel off
+      }
+    }
+  }
+}
+
+//Theatre-style crawling lights with rainbow effect
+void theaterChaseRainbow(uint8_t wait) {
+  for (int j=0; j < 256; j++) {     // cycle all 256 colors in the wheel
+    for (int q=0; q < 3; q++) {
+      for (int i=0; i < strip.numPixels(); i=i+3) {
+        strip.setPixelColor(i+q, Wheel( (i+j) % 255));    //turn every third pixel on
+      }
+      strip.show();
+
+      delay(wait);
+
+      for (int i=0; i < strip.numPixels(); i=i+3) {
+        strip.setPixelColor(i+q, 0);        //turn every third pixel off
+      }
+    }
+  }
+}
+
+// Input a value 0 to 255 to get a color value.
+// The colours are a transition r - g - b - back to r.
+uint32_t Wheel(byte WheelPos) {
+  WheelPos = 255 - WheelPos;
+  if(WheelPos < 85) {
+    return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
+  }
+  if(WheelPos < 170) {
+    WheelPos -= 85;
+    return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+  }
+  WheelPos -= 170;
+  return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+}
+
+
+
+
+
+
