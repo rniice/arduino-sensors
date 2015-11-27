@@ -26,8 +26,6 @@
 //   NEO_KHZ800  800 KHz bitstream (e.g. High Density LED strip), correct for neopixel stick
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(PIXEL_COUNT, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
-bool oldState = HIGH;
-int showType = 0;
 //////////////////////////////NEOPIXEL STUFF//////////////////////////////////////
 
 
@@ -46,9 +44,11 @@ int degrees = 0;                // initialize degrees of mmx at 0 (full open)
 
 bool gesture_event = false;     // initialize at false if there is currently an active gesture
 int GestureCOUNT = 0;           // counts user input for changing mode or settings
+int GestureHOLD = 0;            // counts ms user is holding the device closed
 int GestureTIMEOUT = 5000;      // maximum milliseconds for a gesture to be counted
 bool GestureOPEN = true;        // mmx starts in the open position
 int GestureAngleTHRESHOLD = 45; // angle in degrees which constitues gesture change
+int selectDURATION = 2000;      //amount of time user needs to hold closed to trigger selection
 
 //settings and state variables: track real time clock
 const int sensorSampleRate = 100;// sample rate in milliseconds
@@ -70,6 +70,13 @@ int colorTest = 255;            // start LED color set test at 255
 int colorIncrement = 5;         // color value increment per cycle
 int colorChangeDelay = 2000;    // duration [in milliseconds] before changing color
 
+int colorRed = ;
+int colorGreen =  ;
+int colorBlue = ;
+
+//settings and state variables: show mode
+int showType = 0;               //initialize show type at 0
+int showChangeDelay = 5000;     //delay between switching color shows
 
 //TIMER intervale setup
 SimpleTimer timer;
@@ -81,6 +88,7 @@ int updateOutputIntervalID = timer.setInterval(updateOutputRate, runMode);
 int updateBlinkIntervalID = timer.setInterval(blinkDelay, blinkMode);
 int updateBrightnessIntervalID = timer.setInterval(brightnessChangeDelay, setBrightnessMode);
 int updateColorIntervalID = timer.setInterval(colorChangeDelay, setColorMode);
+int updateShowIntervalID = timer.setInteveral(showChangeDelay, setShowMode);
 
 
 // SETUP
@@ -88,9 +96,8 @@ void setup() {
   Serial.begin(9600);                                         //initialize serial communications
   pinMode(FLEXPin, INPUT);                                    //set pin modes
 
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
   strip.begin();
-  //strip.show(); // Initialize all pixels to 'off'
+  //strip.show(); // toggle all pixels to 'off'
 }
 
 
@@ -103,112 +110,99 @@ void loop() {
     changeProgram();
   }
 
-  //LED CONTROL STUFF FROM BUTTON
-  // Get current button state.
-  bool newState = digitalRead(BUTTON_PIN);
+}
 
-  // Check if state changed from high to low (button press).
-  if (newState == LOW && oldState == HIGH) {
-    // Short delay to debounce button.
-    delay(20);
-    // Check if button is still low after debounce.
-    newState = digitalRead(BUTTON_PIN);
-    if (newState == LOW) {
-      showType++;
-      if (showType > 9)
-        showType=0;
-      startShow(showType);
-    }
+//CALLED WHEN USER CHANGES PROGRAM
+void changeProgram() {
+
+  if (GestureCOUNT==2) {
+    Serial.println("set to blink mode event detected");
+    prevMode = mode;                                          //store the previous mode
+    mode = 2;                                                 //set to blink mode
+  }
+  else if (GestureCOUNT==3 ) {
+    Serial.println("set brightness mode gesture event detected");
+    prevMode = mode;                                          //store the previous mode        
+    mode = 3;                                                 //set to blink mode
+  }
+  else if (GestureCOUNT==4) {                                 //still not implemented  
+    Serial.println("set color mode gesture event detected");
+    prevMode = mode;                                          //store the previous mode        
+    mode = 4;
+  }
+  else if (GestureCOUNT==5) {
+    Serial.println("light show mode gesture event detected");
+    prevMode = mode;                                          //store the previous mode        
+    mode = 5;
+  }
+  else if (GestureCOUNT==6) {
+    Serial.println("reset event detected");
+    prevMode = mode;                                          //store the previous mode        
+    mode = 6;
   }
 
-  // Set the last button state to the old state.
-  oldState = newState;
-  //LED CONTROL STUFF FROM BUTTON
-  
 }
 
 
 //RUN LOOP
 void runMode(){
 
-  //modes 0: standard; 1: blink; 2: dimming_setting; 3: color_setting; 4: reset to 0
+  //modes 0: standard; 1: blink; 2: dimming_setting; 3: color_setting; 5: light show mode; 6: reset to 0
   switch(mode) {
-    case 0:                         //standard mode
+    case 0:                                                   //standard mode
       disableTimers();
       standardMode();
       break;
-    case 2:                         //set to blink mode
+    case 2:                                                   //set to blink mode
       disableTimers();
       timer.enable(updateBlinkIntervalID);
       break;
-    case 3:                         //set brightness mode
+    case 3:                                                   //set brightness mode
       disableTimers();
       timer.enable(updateBrightnessIntervalID);
       break;
-    case 4:                         //set color mode
+    case 4:                                                   //set color mode
       disableTimers();
       timer.enable(updateColorIntervalID);
-      setColorMode();
       break;
-    case 5:
+    case 5:                                                   //set color mode
+      disableTimers();
+      timer.enable(updateShowIntervalID);
+      break;
+    case 6:
       mode = 0;
       break;
     }
 }
 
 
-void disableTimers(){                   //disables all timers running when switching modes
+void disableTimers(){                                         //disables all timers running when switching modes
   timer.disable(updateBlinkIntervalID);                       //disable blinkInterval
   timer.disable(updateBrightnessIntervalID);                  //disable brightnessInterval
   timer.disable(updateColorIntervalID);                       //disable colorInterval
+  timer.disable(updateShowIntervalID);                        //disable showInterval
 }
 
 
 //FLEX SENSOR GESTURE DETECTION
 void checkGesture() {
 
-  if(GestureOPEN) {                          //if previous state is mmx open
-    if(degrees >= GestureAngleTHRESHOLD){    //mmx has been closed
+  if(GestureOPEN) {                                           //if previous state is mmx open
+    if(degrees >= GestureAngleTHRESHOLD){                     //mmx has been closed
       GestureCOUNT++;
       GestureOPEN = false;
       gesture_event = false;
     }
   }
-  else {                                     //if previoius state is mmx closed
-    if(degrees <= GestureAngleTHRESHOLD) {   //mmx has been opened
+  else {                                                      //if previoius state is mmx closed
+    if(degrees <= GestureAngleTHRESHOLD) {                    //mmx has been opened
       GestureOPEN = true;     
       gesture_event = true;
       timer.setTimeout(GestureTIMEOUT, gestureTimer);
     }
-    else {                                   //mmx is still closed after previously being closed
+    else {                                                    //mmx is still closed after previously being closed
       gesture_event = false;
     }
-  }
-
-}
-
-
-void changeProgram() {
-
-  if (GestureCOUNT==2) {
-    Serial.println("set to blink mode event detected");
-    prevMode = mode;                                      //store the previous mode
-    mode = 2;                                             //set to blink mode
-  }
-  else if (GestureCOUNT==3 ) {
-    Serial.println("set brightness mode gesture event detected");
-    prevMode = mode;                                      //store the previous mode        
-    mode = 3;                                             //set to blink mode
-  }
-  else if (GestureCOUNT==4) {   //still not implemented  
-    Serial.println("set color mode gesture event detected");
-    prevMode = mode;                                      //store the previous mode        
-    mode = 4;
-  }
-  else if (GestureCOUNT==5) {
-    Serial.println("reset event detected");
-    prevMode = mode;                                      //store the previous mode        
-    mode = 0;
   }
 
 }
@@ -216,6 +210,7 @@ void changeProgram() {
 
 void gestureTimer() {
   GestureCOUNT = 0;
+  GestureHOLD = 0;
   gesture_event = false;
   Serial.println("resetting gesture event timer");
 }
@@ -237,15 +232,15 @@ void blinkMode(){
 
       if (blinkOn) {
         setLED_STANDARD(0);
-        blinkOn = false;                                 //sets the blinkOn to false for the next iteration
+        blinkOn = false;                                       //sets the blinkOn to false for the next iteration
       }
 
       else {
         setLED_STANDARD(brightness);
-        blinkOn = true;                                  //sets the blinkOn to true for the next iteration
+        blinkOn = true;                                        //sets the blinkOn to true for the next iteration
       }
   }
-  else {                                                 //MMX is closed
+  else {                                                       //MMX is closed
     setLED_STANDARD(0);
   }
 
@@ -253,32 +248,48 @@ void blinkMode(){
 
 
 void setBrightnessMode() {
-  
-    setLED_STANDARD(brightnessTest);                   //start at highest brightness and increment down
-    brightnessTest -= brightnessIncrement;             //reduce the brightnessTest value
 
-  /*
-  else if (GestureOPEN == false) {                     //user has closed hand to confirm selection
-    brightnessIntervalMillis = 0;                      //reset counter to 0;
-    brightness = brightnessTest;                       //overwrite brightness setting
-    mode = prevMode;                                   //go back to the previous mode set
+  if (gestureHOLD >= selectDURATION) {                        //user is selecting this color
+    timer.disable(updateBrightnessIntervalID);
   }
-  */
+
+  else {
+    setLED_STANDARD(brightnessTest);                   //start at highest brightness and increment down
+    brightnessTest -= brightnessIncrement;             //reduce the brightnessTest value 
+  }
+
 }
 
 
 void setColorMode() {       //DO THIS VERY SIMILAR TO setBRIGHTNESS MODE
   
-  setLED_STANDARD(colorTest);                   //start at highest brightness and increment down
-  colorTest -= colorIncrement;             //reduce the brightnessTest value
-
-  /*
-  else if (GestureOPEN == false) {                     //user has closed hand to confirm selection
-    colorIntervalMillis = 0;                      //reset counter to 0;
-    color = colorTest;                       //overwrite brightness setting
-    mode = prevMode;                                   //go back to the previous mode set
+  if (gestureHOLD >= selectDURATION) {                        //user is selecting this color
+    timer.disable(updateColorIntervalID);
   }
-  */
+
+  else {
+    setLED_STANDARD(colorTest);                   //start at highest brightness and increment down
+    colorTest -= colorIncrement;             //reduce the brightnessTest value
+
+    //colorWipe(strip.Color(red, green, blue), 50);
+  }
+
+}
+
+
+void setShowMode() {
+  
+  if (gestureHOLD >= selectDURATION) {                        //user is selecting this pattern
+    timer.disable(updateShowIntervalID);
+  }
+  else {
+    showType++;
+    if (showType > 9){
+      showType=0;
+    }
+    startShow(showType);
+  }
+
 }
 
 
