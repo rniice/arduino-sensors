@@ -9,5 +9,6 @@
 
 ##### HC-SR04:             ultrasonic rangefinder
 
+##### ESP-12E ESP8266      wifi enabled arduino
 
 ##### 100kohm thermistor:  temperature control of relay
